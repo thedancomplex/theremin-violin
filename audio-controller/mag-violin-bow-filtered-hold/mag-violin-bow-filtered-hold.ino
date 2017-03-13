@@ -14,11 +14,14 @@ AudioMixer4              mixer1;         //xy=580,109
 AudioFilterStateVariable filter1;        //xy=657,231
 AudioFilterStateVariable filter2;        //xy=789,223
 AudioSynthWaveformDc     dc1;            //xy=790,411
-AudioAnalyzePeak         peak1;          //xy=961,276
+AudioSynthWaveformSine   sine_hold;          //xy=808,459
+AudioAnalyzeNoteFrequency notefreq1;      //xy=943,291
 AudioMixer4              dcmixer;         //xy=977,458
-AudioEffectMultiply      multiply1;      //xy=1125.333309173584,134.77777099609375
-AudioEffectMultiply      multiply2;      //xy=1127,201
+AudioEffectMultiply      multiply2;      //xy=1083,197
+AudioEffectMultiply      multiply1;      //xy=1091.333251953125,134.77777099609375
+AudioMixer4              hold_mixer;         //xy=1279,265
 AudioMixer4              gain_final;     //xy=1413.0000457763672,136.4444522857666
+AudioAnalyzePeak         peak1;          //xy=1449,328
 AudioOutputI2S           i2s1;           //xy=1586.9998741149902,133.44444274902344
 AudioConnection          patchCord1(mic1, 0, bow, 0);
 AudioConnection          patchCord2(mic1, 1, bow, 1);
@@ -30,13 +33,16 @@ AudioConnection          patchCord7(mixer1, 0, multiply1, 0);
 AudioConnection          patchCord8(mixer1, 0, multiply2, 0);
 AudioConnection          patchCord9(filter1, 0, filter2, 0);
 AudioConnection          patchCord10(filter2, 0, multiply1, 1);
-AudioConnection          patchCord11(filter2, 0, peak1, 0);
+AudioConnection          patchCord11(filter2, 0, notefreq1, 0);
 AudioConnection          patchCord12(dc1, 0, dcmixer, 0);
-AudioConnection          patchCord13(dcmixer, 0, multiply2, 1);
-AudioConnection          patchCord14(multiply1, 0, gain_final, 0);
+AudioConnection          patchCord13(sine_hold, 0, dcmixer, 1);
+AudioConnection          patchCord14(dcmixer, 0, multiply2, 1);
 AudioConnection          patchCord15(multiply2, 0, gain_final, 1);
-AudioConnection          patchCord16(gain_final, 0, i2s1, 0);
-AudioConnection          patchCord17(gain_final, 0, i2s1, 1);
+AudioConnection          patchCord16(multiply1, 0, gain_final, 0);
+AudioConnection          patchCord17(multiply1, 0, hold_mixer, 0);
+AudioConnection          patchCord18(hold_mixer, peak1);
+AudioConnection          patchCord19(gain_final, 0, i2s1, 0);
+AudioConnection          patchCord20(gain_final, 0, i2s1, 1);
 // GUItool: end automatically generated code
 
 
@@ -44,8 +50,8 @@ AudioConnection          patchCord17(gain_final, 0, i2s1, 1);
 AudioControlSGTL5000 audioShield;
 
 int i_hold = 0;
-int i_hold_max = 200;
-double i_hold_val[200] = {};
+int i_hold_max = 100;
+double i_hold_val[100] = {};
 int tr[]      = {0, 0, 0, 0, 0, 0, 0, 0};
 int touch_i[] = {0, 0, 0, 0, 0, 0, 0, 0};
 double a = 1.0;  // amplitude starting
@@ -127,12 +133,20 @@ void setup() {
   bow.gain(0,bow_gain);
   bow.gain(1,bow_gain);
 
+  hold_mixer.gain(0,0.5);
+  hold_mixer.gain(1,0.1);
+
   dc1.amplitude(1.0);
-  dcmixer.gain(0,0.5);
+  dcmixer.gain(0,0.0);
+  dcmixer.gain(1,1.0);
+  sine_hold.frequency(f);
+  sine_hold.amplitude(1.0);
 
   
   filter1.frequency(bow_filter_frequency);
   filter2.frequency(bow_filter_frequency);
+
+  notefreq1.begin(20.0);
 
   memset(&i_hold_val, 0, sizeof(i_hold_val));
 }
@@ -202,7 +216,8 @@ void loop() {
   square1.pulseWidth(square_width);
   
   //bow_gain.amplitude(bow_amp);
-  
+
+  sine_hold.frequency(f/64.0);
   
   if(flag_set_phase > 0.5){
     sine1.phase(sine_phase);
@@ -214,6 +229,7 @@ void loop() {
 //double pk = peak1.read();
  //if (pk < bow_min) { bow.gain(0, 0.0); bow.gain(1, 0.0);}
  //else {bow.gain(0, bow_gain); bow.gain(1, bow_gain);}
+
  Serial.println(gain_hold);
  delay(10);
 }
